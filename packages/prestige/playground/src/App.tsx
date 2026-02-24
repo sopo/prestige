@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-
-const date = new Date();
-
+import { Sidebar } from "@lonik/prestige/ui";
 export function App() {
   const [html, setHtml] = useState("");
   useEffect(() => {
@@ -14,7 +12,8 @@ export function App() {
   }, []);
   return (
     <>
-      PLAYqeqeqewqeqeqGROUND {date.getTime()}
+      <Sidebar />
+      PLAYqeqeqewqeqeqGROUND
       <div
         dangerouslySetInnerHTML={{
           __html: html,

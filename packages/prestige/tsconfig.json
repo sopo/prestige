@@ -8,9 +8,12 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "types": [],
+    "types": ["./src/vite/client.d.ts", "vite/client"],
     "declaration": true,
-    "emitDeclarationOnly": true
+    "emitDeclarationOnly": true,
+    "paths": {
+      "@lonik/prestige/ui": ["./src/ui/index.ts"]
+    }
   },
   "include": ["src"]
 }
