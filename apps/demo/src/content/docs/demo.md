@@ -1,3 +1,8 @@
+---
+title: Demo Article
+layout: solar-system
+---
+
 <span className="project-title pr-1">Oh Image</span> is an image component
 library for React and Vite apps. It ships with a lightweight yet powerful Image
 component plus a Vite optimizer plugin that automatically optimizes static
