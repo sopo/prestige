@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
           // add "extends: true" to inherit the options from the root config
           extends: true,
           test: {
-            include: ["tests/vite/**/*.test.{ts,js}"],
+            include: ["src/**/*.test.{ts,js}", "tests/**/*.test.{ts,js}"],
             environment: "node",
             setupFiles: ["tests/setup.ts"],
           },
