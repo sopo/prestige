@@ -14,5 +14,16 @@ export default defineConfig({
         },
       ],
     },
+    {
+      id: "api",
+      label: "API",
+      items: [
+        {
+          label: "Prestige",
+          type: "link",
+          slug: "api/prestige",
+        },
+      ],
+    },
   ],
 });
