@@ -1,21 +1,70 @@
-declare module "virtual:prestige" {
-  export const contents: string[];
-}
-
 declare module "virtual:prestige/content-all" {
-  import { Content } from "./core/content/content.types";
-  export const contents: Record<string, () => Promise<Content>>;
+  interface TocItem {
+    value: string;
+    href: string;
+    depth: HeadingDepth;
+    numbering: number[];
+    parent: HeadingParent;
+    data?: Record<string, unknown>;
+  }
+
+  interface NavigationLink {
+    slug: string;
+    label: string;
+  }
+
+  interface ContentHead {
+    title: string;
+    lastUpdated: string;
+    label: string;
+    description: string;
+  }
+
+  interface ContentType {
+    toc: TocItem[];
+    prev: NavigationLink;
+    next: NavigationLink;
+    default: React.ElementType;
+  }
+  export const contents: Record<
+    string,
+    {
+      content: () => Promise<ContentType>;
+      head: () => Promise<ContentHead>;
+    }
+  >;
   export default contents;
 }
 
 declare module "virtual:prestige/sidebar-all" {
-  import { Sidebar } from "./core/content/content.types";
-  const sidebars: Record<string, () => Promise<Sidebar>>;
+  interface SidebarLinkType {
+    slug: string;
+    label: string;
+  }
+
+  interface SidebarGroupType {
+    label: string;
+    items: SidebarItemType[];
+    collapsible?: boolean | undefined;
+  }
+
+  type SidebarItemType = SidebarLinkType | SidebarGroupType;
+
+  interface SidebarType {
+    items: SidebarItemType[];
+    defaultLink: string;
+  }
+
+  const sidebars: Record<string, () => Promise<SidebarType>>;
   export default sidebars;
 }
 
 declare module "virtual:prestige/collection-all" {
-  import { CollectionNavigation } from "./core/content/content.types";
+  type CollectionNavigation = {
+    id: string;
+    label: string;
+    defaultLink?: string;
+  };
   const collections: Array<CollectionNavigation>;
   export default collections;
 }

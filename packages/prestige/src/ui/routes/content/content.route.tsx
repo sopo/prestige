@@ -13,26 +13,24 @@ export default function createContentRoute(root: AnyRoute) {
   const contentRouter = createRoute({
     getParentRoute: () => root,
     path: "$",
-
-    loader: async ({ params }) => {
-      const slug = [params["slug"], params["_splat"]].filter(Boolean).join("/");
-
-      const contentFetcher = contents[slug];
-      if (!contentFetcher) throw notFound();
-
-      const response = await contentFetcher();
-      if (!response) throw notFound();
-      // ONLY return serializable data (strings, numbers, objects)
-      return {
-        code: response.html,
-        toc: response.toc || [],
-        prev: response.prev,
-        next: response.next,
-        metadata: response.metadata || {}, // If you have frontmatter
-      };
-    },
     component: ContentComponent,
     notFoundComponent: ContentNotFound,
+    head: async ({ params }) => {
+      const slug = [params["slug"], params["_splat"]].filter(Boolean).join("/");
+      const contentFetcher = contents[slug];
+      if (!contentFetcher) {
+        throw notFound();
+      }
+      const content = await contentFetcher.head();
+
+      return {
+        meta: [
+          {
+            title: content?.title,
+          },
+        ],
+      };
+    },
   });
 
   function ContentComponent() {
@@ -49,7 +47,7 @@ export default function createContentRoute(root: AnyRoute) {
       if (!contentFetcher) {
         return;
       }
-      contentFetcher().then((data) => {
+      contentFetcher.content().then((data) => {
         setContent(() => data.default);
         setToc(data.toc);
         setPrev(data.prev);
