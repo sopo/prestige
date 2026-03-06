@@ -8,7 +8,7 @@ export default function Header() {
   return (
       <header className="sticky top-0 z-40 flex h-header  border-b border-gray-200 bg-gray-50/80 px-4 backdrop-blur-md">
         <div className="container mx-auto flex max-w-360  items-center justify-between">
-          <div className="flex gap-2">
+          <div className="flex gap-4">
             <Link to={"/"}>Home</Link>
             {collections.map((collection) => (
               <Link
