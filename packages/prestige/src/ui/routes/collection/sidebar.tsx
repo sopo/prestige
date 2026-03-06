@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
-import { BookOpen, ChevronDown } from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
   SidebarGroupType,
@@ -22,19 +22,21 @@ function SidebarGroup({
 }) {
   const [open, setIsOpen] = useState(true);
   return (
-    <div className="mt-4 bg-amber-300">
+    <div className="mt-4 flex flex-col gap-1">
+      
       <button
-        className="flex items-center justify-between w-full cursor-pointer"
+        className="flex items-center w-full gap-2" 
         onClick={() => setIsOpen((prev) => !prev)}
       >
-        <span className="font-medium mb-1">{group.label}</span>
-        <ChevronDown
-          size={20}
-          className={clsx("transform transition", open && "rotate-180")}
+         <ChevronRight
+        size={18}
+          className={clsx("transform transition cursor-pointer ml-1", open && "rotate-90")}
         />
+        <span className="font-mono text-xs tracking-widest">{group.label.toUpperCase()}</span>
+       
       </button>
       {open && (
-        <div className="pl-2  mb-2">
+        <div className="mb-2">
           {group.items.map((item) => {
             if (typeof item === "string" || "slug" in item) {
               const key = typeof item === "string" ? item : item.slug;
@@ -62,7 +64,7 @@ function SidebarLink({
     <div>
       <Link
         onClick={onLinkClick}
-        activeProps={{ className: "text-zinc-800 font-medium" }}
+        activeProps={{ className: "text-zinc-700 font-medium" }}
         className="w-full inline-flex rounded py-1 px-2 gap-2 hover:bg-zinc-100 "
         to={slug}
       >
