@@ -6,10 +6,10 @@ export function ContentRoute(data: any) {
   return {
     component: () => {
       return (
-        <div className="flex xl:gap-10 items-start">
+        <div className="flex lg:gap-6 items-start max-w-[100vw]">
           <div className="flex-1 min-w-0">
             <MobileTableOfContent toc={data.toc} />
-            <article className="prose prose-lg max-w-none wrap-break-word">
+            <article className="prose prose-base max-w-none wrap-break-word">
               <data.default />
             </article>
             <ContentNavigations prev={data.prev} next={data.next} />
