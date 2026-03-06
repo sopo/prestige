@@ -4,23 +4,41 @@ import { EnvironmentModuleNode, normalizePath, type Plugin } from "vite";
 import { resolvePrestigeConfig } from "./config/config";
 import { PrestigeConfig, PrestigeConfigInput } from "./config/config.types";
 
+import { genObjectFromValues } from "knitwork";
+import { warmupCompiler } from "./content/content-compiler";
 import { compileRoutes } from "./content/router-compiler";
-import { ContentCollectionStore } from "./core/content/content-collection.store";
+import {
+  COLLECTION_VIRTUAL_ID,
+  resolveCollectionNavigations,
+} from "./core/content/content-collection.store";
 import { resolveContentLinks } from "./core/content/content-links";
-import { ContentSidebarStore } from "./core/content/content-sidebar.store";
-import { ContentStore } from "./core/content/content.store";
-import { Collections } from "./core/content/content.types";
+import {
+  resolveSidebars,
+  SIDEBAR_VIRTUAL_ID,
+} from "./core/content/content-sidebar.store";
+import {
+  CONTENT_VIRTUAL_ID,
+  getSlugByPath,
+  resolveContent,
+} from "./core/content/content.store";
+import {
+  Collections,
+  SidebarLinkType,
+  SidebarType,
+} from "./core/content/content.types";
+import { genExportDefault, genExportUndefined } from "./utils/code-generation";
 
 export default function prestige(inlineConfig?: PrestigeConfigInput): Plugin {
   let config: PrestigeConfig;
   let contentDir: string;
   let isDocsMatcher: Matcher;
-  let contentStore: ContentStore;
-  let contentCollectionStore: ContentCollectionStore;
   let collections: Collections = [];
-  let contentSidebarStore: ContentSidebarStore;
+  let linksMap: Map<string, SidebarLinkType[]>;
+  let collectionNavigations: string;
+  let sidebarsMap: Map<string, SidebarType>;
   return {
     name: "vite-plugin-prestige",
+    enforce: "pre",
     async configResolved(resolvedConfig) {
       const { config: loadedConfig } = await resolvePrestigeConfig(
         inlineConfig,
@@ -30,51 +48,47 @@ export default function prestige(inlineConfig?: PrestigeConfigInput): Plugin {
       contentDir = join(resolvedConfig.root, normalizePath(config.docsDir));
       isDocsMatcher = picomatch(join(contentDir, "**/*.{md,mdx}"));
       collections = config.collections ?? [];
+      sidebarsMap = await resolveSidebars(collections, contentDir);
 
-      contentStore = new ContentStore(contentDir);
-      await contentStore.process();
-
-      contentSidebarStore = new ContentSidebarStore(contentDir, contentStore);
-      const sidebars = await contentSidebarStore.init(collections);
-
-      contentCollectionStore = new ContentCollectionStore();
-      contentCollectionStore.init(collections, sidebars);
-
-      await contentStore.init(sidebars);
+      collectionNavigations = resolveCollectionNavigations(collections);
 
       const routesDir = join(resolvedConfig.root, "src", "routes");
-      const linksMap = resolveContentLinks(sidebars);
-
+      linksMap = resolveContentLinks(sidebarsMap);
       await compileRoutes(linksMap, routesDir);
+
+      // Warm up the MDX compiler to pre-initialize the syntax highlighter (e.g. Shiki)
+      // We do this non-blocking so it doesn't slow down the Vite startup.
+      warmupCompiler(config.markdown);
     },
     resolveId(id) {
-      const sidebarId = contentSidebarStore.resolve(id);
-      if (sidebarId) {
-        return sidebarId;
+      if (id.includes(CONTENT_VIRTUAL_ID)) {
+        return "\0" + id;
       }
-      const collectionId = contentCollectionStore.resolve(id);
-      if (collectionId) {
-        return collectionId;
+      if (id.includes(COLLECTION_VIRTUAL_ID)) {
+        return "\0" + id;
       }
-      const storeId = contentStore.resolve(id);
-      if (storeId) {
-        return storeId;
+
+      if (id.includes(SIDEBAR_VIRTUAL_ID)) {
+        return "\0" + id;
       }
 
       return null;
     },
     async load(id) {
-      const sidebarId = contentSidebarStore.load(id);
-      if (sidebarId) {
-        return sidebarId;
+      if (id.includes(CONTENT_VIRTUAL_ID)) {
+        return await resolveContent(id, linksMap, contentDir);
       }
-      const loadCollectionId = contentCollectionStore.load(id);
-      if (loadCollectionId) {
-        return loadCollectionId;
+      if (id.includes(COLLECTION_VIRTUAL_ID)) {
+        return collectionNavigations;
       }
-      const loadId = await contentStore.load(id);
-      if (loadId) {
-        return loadId;
+
+      if (id.includes(SIDEBAR_VIRTUAL_ID)) {
+        const sidebarId = id.replace(SIDEBAR_VIRTUAL_ID, "").replace("\0", "");
+        const sidebar = sidebarsMap.get(sidebarId);
+        if (!sidebar) {
+          return genExportUndefined();
+        }
+        return genExportDefault(genObjectFromValues(sidebar));
       }
 
       return null;
@@ -83,18 +97,18 @@ export default function prestige(inlineConfig?: PrestigeConfigInput): Plugin {
     async hotUpdate({ file, timestamp }) {
       if (isDocsMatcher(file)) {
         const invalidatedModules = new Set<EnvironmentModuleNode>();
-        await contentStore.invalidate(file);
-        const virtualModuleIds = contentStore.getVirtualModuleIdsForFile(file);
-        for (const id of virtualModuleIds) {
-          const module = this.environment.moduleGraph.getModuleById(id);
-          if (module) {
-            this.environment.moduleGraph.invalidateModule(
-              module,
-              invalidatedModules,
-              timestamp,
-              true,
-            );
-          }
+        const slug = getSlugByPath(file, contentDir);
+        const virtualModuleId = `\0${CONTENT_VIRTUAL_ID}${slug}`;
+        const module =
+          this.environment.moduleGraph.getModuleById(virtualModuleId);
+        if (module) {
+          this.environment.moduleGraph.invalidateModule(
+            module,
+            invalidatedModules,
+            timestamp,
+            true,
+          );
+          this.environment.hot.send({ type: "full-reload" });
         }
       }
     },

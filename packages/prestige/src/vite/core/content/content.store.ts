@@ -1,21 +1,84 @@
-import { SidebarType, SidebarItemType, SidebarLinkType, ContentMatter } from "./content.types";
-import { genDynamicImport, genObjectFromRaw, genObjectFromValues } from "knitwork";
-import {
-  genDynamicImportWithDefault,
-  genExportDefault,
-  genExportUndefined,
-} from "../../utils/code-generation";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { glob } from "tinyglobby";
 import { parse, relative } from "pathe";
-import { matter } from "vfile-matter";
+import { glob } from "tinyglobby";
 import { read } from "to-vfile";
 import { VFile } from "vfile";
+import { matter } from "vfile-matter";
 import { compileMarkdown } from "../../content/content-compiler";
-import { PrestigeConfig } from "../../config/config.types";
+import { ContentMatter, SidebarLinkType } from "./content.types";
 
-function getSlugByPath(path: string, contentDir: string) {
+import { compileFrontmatter } from "../../content/content-compiler";
+
+export const CONTENT_VIRTUAL_ID = "virtual:prestige/content/";
+
+export function resolveSiblings(
+  base: string,
+  slug: string,
+  linksMap: Map<string, SidebarLinkType[]>,
+) {
+  const links = linksMap.get(base);
+  if (!links?.length) {
+    return { prev: undefined, next: undefined };
+  }
+  const linkIndex = links.findIndex((link) => link.slug === slug);
+
+  let prev: SidebarLinkType | undefined;
+  let next: SidebarLinkType | undefined;
+  if (linkIndex > 0) {
+    prev = links[linkIndex - 1];
+  }
+  if (linkIndex < links.length - 1) {
+    next = links[linkIndex + 1];
+  }
+  return { prev, next };
+}
+
+export async function resolveMarkdown(slug: string, contentDir: string) {
+  const filePath = await getPathBySlug(slug, contentDir);
+  const baseUrl = pathToFileURL(filePath).href;
+  const file = await read(filePath);
+  const { code, toc } = await compileMarkdown(file, baseUrl);
+  const frontmatter = await compileFrontmatter(file);
+  return { code, toc, frontmatter };
+}
+
+export async function resolveContent(
+  id: string,
+  linksMap: Map<string, SidebarLinkType[]>,
+  contentDir: string,
+) {
+  const slug = id.replace(CONTENT_VIRTUAL_ID, "").replace("\0", "");
+  const base = slug.split("/")[0] as string;
+
+  const { prev, next } = resolveSiblings(base, slug, linksMap);
+  const { toc, code, frontmatter } = await resolveMarkdown(slug, contentDir);
+  let resolvedCode = code;
+
+  resolvedCode += `\n export const toc = ${JSON.stringify(toc)}\n`;
+  resolvedCode += `\n export const prev = ${JSON.stringify(prev)}\n`;
+  resolvedCode += `\n export const next = ${JSON.stringify(next)}\n`;
+  resolvedCode += `\n export const frontmatter = ${JSON.stringify(
+    frontmatter,
+  )}\n`;
+  return resolvedCode;
+}
+
+export async function getPathBySlug(slug: string, contentDir: string) {
+  const pathMatch = join(contentDir, slug);
+  return (await glob(`${pathMatch}.{md,mdx}`))[0] as string;
+}
+
+export async function getFileBySlug(slug: string, contentDir: string) {
+  return await read(await getPathBySlug(slug, contentDir));
+}
+
+export function getVirtualModuleIdsForFile(path: string, contentDir: string) {
+  const slug = getSlugByPath(path, contentDir);
+  return ["\0" + CONTENT_VIRTUAL_ID + slug];
+}
+
+export function getSlugByPath(path: string, contentDir: string) {
   // 1. Get the relative path: "zz/zz/myFile.json"
   const relativePath = relative(contentDir, path);
 
@@ -44,145 +107,3 @@ type LocalVFile = VFile & {
     prev?: SidebarLinkType | null | undefined;
   };
 };
-
-export class ContentStore {
-  private _store = new Map<string, SidebarLinkType>();
-  private _files = new Map<string, LocalVFile>();
-  private _virtualId = "virtual:prestige/content/";
-  private _virtualHeadId = "virtual:prestige/content-head/";
-  private _virtualIdAll = "virtual:prestige/content-all";
-
-  constructor(private contentDir: string) {}
-
-  async process() {
-    const paths = await glob(`${this.contentDir}/**/*.{md,mdx}`);
-    for (const path of paths) {
-      const { slug, vFile } = await processFile(path, this.contentDir);
-      this._files.set(slug, vFile);
-    }
-  }
-
-  async invalidate(path: string) {
-    const { slug, vFile } = await processFile(path, this.contentDir);
-    const existingFile = this._files.get(slug);
-    if (existingFile && existingFile.data) {
-      vFile.data = { ...existingFile.data };
-    }
-    this._files.set(slug, vFile);
-  }
-
-  getFileBySlug(slug: string): undefined | VFile {
-    return this._files.get(slug);
-  }
-
-  getMatter(file: VFile) {
-    return file.data["matter"] as ContentMatter;
-  }
-
-  getVirtualModuleIdsForFile(path: string) {
-    const slug = getSlugByPath(path, this.contentDir);
-    return ["\0" + this._virtualId + slug, "\0" + this._virtualIdAll];
-  }
-
-  async init(sidebars: Map<string, SidebarType>) {
-    const sidebarsArray = sidebars.values();
-    for (const sidebar of sidebarsArray) {
-      const links = this._flattenLinks(sidebar.items);
-      for (let i = 0; i < links.length; i++) {
-        const link = links[i];
-        if (link) {
-          this._store.set(link.slug, link);
-          const file = this._files.get(link.slug);
-          if (file) {
-            file.data = file.data || {};
-            if (i > 0) file.data["prev"] = links[i - 1];
-            if (i < links.length - 1) file.data["next"] = links[i + 1];
-          }
-        }
-      }
-    }
-  }
-
-  private _flattenLinks(items: SidebarItemType[]): SidebarLinkType[] {
-    const links: SidebarLinkType[] = [];
-    for (const item of items) {
-      if ("slug" in item) {
-        links.push(item);
-      } else if ("items" in item) {
-        links.push(...this._flattenLinks(item.items));
-      }
-    }
-    return links;
-  }
-
-  async resolve(id: string) {
-    if (id === this._virtualIdAll) {
-      return "\0" + this._virtualIdAll;
-    }
-    if (id.startsWith(this._virtualId)) {
-      return "\0" + id;
-    }
-    if (id.startsWith(this._virtualHeadId)) {
-      return "\0" + id;
-    }
-    return null;
-  }
-
-  async load(id: string, options?: Pick<PrestigeConfig, "markdown">) {
-    if (id.includes("\0" + this._virtualIdAll)) {
-      const records: Record<
-        string,
-        {
-          content: string;
-          head: string;
-        }
-      > = {};
-      for (const [key] of this._store.entries()) {
-        records[key] = {
-          content: genDynamicImport(`virtual:prestige/content/${key}`),
-          head: genDynamicImportWithDefault(`virtual:prestige/content-head/${key}`),
-        };
-      }
-      return genExportDefault(genObjectFromRaw(records));
-    }
-    if (id.includes("\0" + this._virtualHeadId)) {
-      const pathPart = id.replace("\0" + this._virtualHeadId, "");
-      const file = this._files.get(pathPart);
-      if (!file) {
-        return genExportUndefined();
-      }
-      const matter = file.data["matter"];
-      if (!matter) {
-        return genExportUndefined();
-      }
-      return genExportDefault(genObjectFromValues(matter));
-    }
-
-    if (id.includes("\0" + this._virtualId)) {
-      const pathPart = id.replace("\0" + this._virtualId, "");
-      const file = this._files.get(pathPart);
-      if (!file) {
-        return genExportUndefined();
-      }
-
-      const { code, toc } = await compileMarkdown(
-        file.toString(),
-        pathToFileURL(file.path).href,
-        options?.markdown,
-      );
-      if (!code) {
-        return genExportUndefined();
-      }
-
-      let rseolvedCode = code;
-
-      rseolvedCode += `\n export const toc = ${JSON.stringify(toc)}\n`;
-      rseolvedCode += `\n export const prev = ${JSON.stringify(file.data["prev"])}\n`;
-      rseolvedCode += `\n export const next = ${JSON.stringify(file.data["next"])}\n`;
-
-      return rseolvedCode;
-    }
-
-    return null;
-  }
-}

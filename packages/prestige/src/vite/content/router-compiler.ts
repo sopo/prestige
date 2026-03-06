@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, unlink, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { SidebarLinkType } from "../core/content/content.types";
-import { rmSafe } from "../utils/file-utils";
+
 export async function compileRoutes(
   linksMap: Map<string, SidebarLinkType[]>,
   routesDir: string,
@@ -9,50 +9,67 @@ export async function compileRoutes(
   const prestigePath = "(prestige)";
   const prestigeFullPath = join(routesDir, prestigePath);
 
-  await rmSafe(prestigeFullPath);
+  try {
+    await mkdir(prestigeFullPath, { recursive: true });
 
-  await mkdir(prestigeFullPath, { recursive: true });
+    const generatedFiles = new Map<string, string>();
 
-  for (const [key, links] of linksMap) {
-    const sidebarPath = key;
-    const sidebarFullPath = join(prestigeFullPath, sidebarPath + ".tsx");
-    await writeFile(sidebarFullPath, createLayoutRoute(key));
+    for (const [key, links] of linksMap) {
+      const sidebarPath = key;
+      const sidebarFile = sidebarPath + ".lazy.tsx";
+      generatedFiles.set(sidebarFile, createLayoutRoute(key));
 
-    for (const l of links) {
-      const pathified = l.slug.replaceAll("/", ".") + ".lazy.tsx";
-
-      const filePath = join(prestigeFullPath, pathified);
-      await writeFile(filePath, createContentRoute(l.slug));
+      for (const l of links) {
+        const pathified = l.slug.replaceAll("/", ".") + ".lazy.tsx";
+        generatedFiles.set(pathified, createContentRoute(l.slug));
+      }
     }
+
+    // Write files only if they have changed or do not exist
+    await Promise.all(
+      [...generatedFiles.entries()].map(async ([fileName, contents]) => {
+        const filePath = join(prestigeFullPath, fileName);
+        try {
+          const existingContent = await readFile(filePath, "utf-8");
+          if (existingContent === contents) {
+            return; // Skip writing if identical
+          }
+        } catch (e) {
+          // File doesn't exist yet, proceed to write
+        }
+        return writeFile(filePath, contents);
+      }),
+    );
+
+    const existingFiles = await readdir(prestigeFullPath);
+    const staleFiles = existingFiles.filter(
+      (fileName) => fileName.endsWith(".lazy.tsx") && !generatedFiles.has(fileName),
+    );
+
+    await Promise.all(
+      staleFiles.map((fileName) => unlink(join(prestigeFullPath, fileName))),
+    );
+  } catch (error) {
+    console.error("[Prestige Router Compiler] Failed to compile routes:", error);
   }
 }
 
 function createLayoutRoute(id: string) {
-  const code = `
-  
-            import { createFileRoute,Outlet } from '@tanstack/react-router'
-            import sidebar from "virtual:prestige/sidebar/${id}"
-            import {CollectionRoute} from "@lonik/prestige/ui"
-            
-            export const Route = createFileRoute('/(prestige)/${id}')(CollectionRoute(sidebar,"${id}"))
-            
-            
-  `;
-  return code;
+  return `
+import { createLazyFileRoute } from '@tanstack/react-router';
+import sidebar from "virtual:prestige/sidebar/${id}";
+import { CollectionRoute } from "@lonik/prestige/ui";
+
+export const Route = createLazyFileRoute('/(prestige)/${id}')(CollectionRoute(sidebar, "${id}"));
+`.trim() + "\n";
 }
 
 function createContentRoute(slug: string) {
-  const code = `
-import { createFileRoute } from "@tanstack/react-router";
+  return `
+import { createLazyFileRoute } from "@tanstack/react-router";
 import * as contentData from "virtual:prestige/content/${slug}";
 import { ContentRoute } from "@lonik/prestige/ui";
 
-
-          export const Route = createFileRoute('/${slug}')(ContentRoute(contentData))
-          
-        
-        
-  `;
-
-  return code;
+export const Route = createLazyFileRoute('/(prestige)/${slug}')(ContentRoute(contentData));
+`.trim() + "\n";
 }

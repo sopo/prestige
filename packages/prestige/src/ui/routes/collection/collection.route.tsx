@@ -5,7 +5,7 @@ import Sidebar from "./sidebar";
 
 export function CollectionRoute(sidebar: SidebarType, id: string) {
   return {
-    loader: ({ location }: { location: ParsedLocation }) => {
+    beforeLoad: ({ location }: { location: ParsedLocation }) => {
       if (id === location.pathname.slice(1)) {
         if (sidebar.defaultLink) {
           throw redirect({
