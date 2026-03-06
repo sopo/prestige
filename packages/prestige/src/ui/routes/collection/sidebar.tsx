@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
-import { ChevronDown } from "lucide-react";
+import { BookOpen, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import {
   SidebarGroupType,
@@ -22,7 +22,7 @@ function SidebarGroup({
 }) {
   const [open, setIsOpen] = useState(true);
   return (
-    <div className="mt-4">
+    <div className="mt-4 bg-amber-300">
       <button
         className="flex items-center justify-between w-full cursor-pointer"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -62,10 +62,11 @@ function SidebarLink({
     <div>
       <Link
         onClick={onLinkClick}
-        activeProps={{ className: "bg-primary-50/70 text-primary-900" }}
-        className="w-full inline-block rounded-sm py-1 px-2"
+        activeProps={{ className: "text-zinc-800 font-medium" }}
+        className="w-full inline-flex rounded py-1 px-2 gap-2 hover:bg-zinc-100 "
         to={slug}
       >
+        <BookOpen className="w-4"/>
         {link.label}
       </Link>
     </div>
@@ -74,7 +75,7 @@ function SidebarLink({
 
 export default function Sidebar({ sidebar, onLinkClick }: SidebarProps) {
   return (
-    <div className="w-full lg:w-sidebar border-r border-gray-300 p-4 h-full overflow-auto lg:h-main lg:sticky top-header text-[15px]">
+    <div className=" w-full lg:w-sidebar border-r border-gray-300 p-4 h-full overflow-auto lg:h-main lg:sticky top-header text-[15px]">
       {sidebar.items.map((item) => {
         if (typeof item === "string" || "slug" in item) {
           const key = typeof item === "string" ? item : item.slug;
