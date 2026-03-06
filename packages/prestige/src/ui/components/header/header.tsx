@@ -9,12 +9,14 @@ export default function Header() {
       <header className="sticky top-0 z-40 flex h-header  border-b border-gray-200 bg-gray-50/80 px-4 backdrop-blur-md">
         <div className="container mx-auto flex max-w-360  items-center justify-between">
           <div className="flex gap-4">
-            <Link to={"/"}>Home</Link>
+            <Link 
+            className="text-sm"
+            to={"/"}>Home</Link>
             {collections.map((collection) => (
               <Link
                 key={collection.id}
                 to={`/${collection.id}` as any}
-                className="border-b-transparent border-b-2"
+                className="border-b-transparent border-b-2 text-sm"
                 activeProps={{
                   style: { borderBottomColor: "var(--color-primary)" }, // style object is used to overide border transparent
                 }}
