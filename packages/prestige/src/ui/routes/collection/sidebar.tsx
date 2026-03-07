@@ -41,7 +41,7 @@ function SidebarGroup({
             if (typeof item === "string" || "slug" in item) {
               const key = typeof item === "string" ? item : item.slug;
               return (
-                <SidebarLink key={key} link={item} onLinkClick={onLinkClick} />
+                <SidebarLink key={key} showIcon={false} link={item} onLinkClick={onLinkClick} />
               );
             }
             return <SidebarGroup key={item.label} group={item} />;
@@ -55,9 +55,11 @@ function SidebarGroup({
 function SidebarLink({
   link,
   onLinkClick,
+  showIcon
 }: {
   link: SidebarLinkType;
   onLinkClick?: (() => void) | undefined;
+  showIcon:boolean
 }) {
   const slug = `/${link.slug}`;
   return (
@@ -68,7 +70,7 @@ function SidebarLink({
         className="w-full inline-flex gap-2 py-1 px-2 rounded hover:bg-zinc-100 text-sm mr-2 items-center"
         to={slug}
       >
-        <BookOpen className="w-4"/>
+        {showIcon &&<BookOpen className="w-4"/>}
         {link.label}
       </Link>
     </div>
@@ -82,7 +84,7 @@ export default function Sidebar({ sidebar, onLinkClick }: SidebarProps) {
         if (typeof item === "string" || "slug" in item) {
           const key = typeof item === "string" ? item : item.slug;
           return (
-            <SidebarLink onLinkClick={onLinkClick} key={key} link={item} />
+            <SidebarLink showIcon={true} onLinkClick={onLinkClick} key={key} link={item} />
           );
         }
         return <SidebarGroup key={item.label} group={item} />;

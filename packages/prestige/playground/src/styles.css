@@ -50,6 +50,31 @@
   --width-sidebar: 300px;
 }
 
+h1{
+  color: var(--color-violet-500)
+}
+h2{
+  font-size: 1.875rem;
+  font-family: var(--font-sans);
+  letter-spacing: -0.03rem;
+  font-weight: 400;
+    color: var(--color-zinc-700);
+}
+p{
+  font-size: 1rem;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01rem;
+  font-weight: 400;
+    color: var(--color-zinc-600);
+}
+
+.prose{
+  h2{
+    color: red !important;
+    margin: 0
+  }
+}
+
 :root {
   @apply bg-gray-50/50 text-text-soft font-sans;
 }

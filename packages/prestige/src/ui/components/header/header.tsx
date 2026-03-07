@@ -16,7 +16,7 @@ export default function Header() {
               <Link
                 key={collection.id}
                 to={`/${collection.id}` as any}
-                className="border-b-transparent border-b-2 text-sm px-2 py-1 rounded hover:bg-zinc-100 active:bg-zinc-200"
+                className="border-b-transparent border-b-2 text-sm px-2 py-1 rounded hover:bg-zinc-100 active:bg-zinc-200 capitalize"
                 activeProps={{ className: "text-zinc-800 font-medium" }}
               >
                 {collection.label}
