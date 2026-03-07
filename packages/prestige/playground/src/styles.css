@@ -42,7 +42,9 @@
   --color-text-strong: var(--color-zinc-100);
   --color-text-soft: var(--color-zinc-300);
 
-  
+.prose{
+   --tw-prose-code:var(--color-gray-700)
+}
 
 }
 
@@ -83,7 +85,12 @@
   --color-text-strong: var(--color-zinc-700);
   --color-text-soft: var(--color-zinc-500);
 
+
+.prose{
+   --tw-prose-code:var(--color-gray-700)
 }
+}
+
 
 :root {
   @apply bg-gray-50 text-text-soft font-sans;
@@ -133,26 +140,27 @@
 }
 
 h1 {
-  color: var(--color-violet-500);
+  font-size: 2rem;
+  line-height: 1.2rem;
+  font-family: var(--font-sans);
+  letter-spacing: -0.02rem;
+  font-weight: 400;
+  @apply text-gray-700;
 }
 h2 {
   font-size: 1.875rem;
+  line-height: 1.2rem;
   font-family: var(--font-sans);
   letter-spacing: -0.03rem;
   font-weight: 400;
-  color: var(--color-zinc-700);
+    @apply text-gray-700;
+
 }
 p {
   font-size: 1rem;
+  line-height: 1.5rem;
   font-family: var(--font-sans);
-  letter-spacing: -0.01rem;
   font-weight: 400;
-  color: var(--color-zinc-600);
+  @apply text-gray-500;
 }
 
-.prose {
-  h2 {
-    color: red !important;
-    margin: 0;
-  }
-}
